@@ -13,11 +13,13 @@ export class Memoria implements IGestionMemoria {
 
     constructor(total: number, nombrePolitica: NombrePolitica) {
         exigir(enteroPositivo(total), "La memoria total debe ser un entero positivo");
+
         const politicas: Record<NombrePolitica, IPoliticaAsignacion> = {
             "first-fit": new FirstFit(),
             "best-fit": new BestFit(),
             "worst-fit": new WorstFit()
         };
+
         this.total = total;
         this.nombrePolitica = nombrePolitica;
         this.politica = politicas[nombrePolitica];
@@ -32,7 +34,14 @@ export class Memoria implements IGestionMemoria {
         return encontrado;
     }
 
-    liberar(_pid: string): void {}
+    liberar(pid: string): void {
+        this.bloques = this.bloques.map(bloque =>
+            bloque.getPid() === pid
+                ? new BloqueMemoria(bloque.getInicio(), bloque.getTamanio())
+                : bloque
+        );
+        this.coalescer();
+    }
 
     obtenerBloques(): VistaBloque[] {
         return this.bloques.map(bloque => bloque.vista());
@@ -67,9 +76,21 @@ export class Memoria implements IGestionMemoria {
         const usado = new BloqueMemoria(bloque.getInicio(), proceso.getMemoria(), proceso.getPid());
         const sobrante = bloque.getTamanio() - proceso.getMemoria();
         const reemplazo = [usado];
+
         sobrante > 0 && reemplazo.push(
             new BloqueMemoria(bloque.getInicio() + proceso.getMemoria(), sobrante)
         );
+
         this.bloques.splice(indice, 1, ...reemplazo);
+    }
+
+    private coalescer(): void {
+        this.bloques = this.bloques.reduce<BloqueMemoria[]>((resultado, bloque) => {
+            const anterior = resultado.at(-1);
+            const unir = Boolean(anterior?.estaLibre() && bloque.estaLibre());
+            unir && anterior?.ampliar(bloque.getTamanio());
+            unir || resultado.push(bloque);
+            return resultado;
+        }, []);
     }
 }
