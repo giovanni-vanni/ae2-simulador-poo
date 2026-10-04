@@ -20,11 +20,14 @@ export class PlanificadorRoundRobin implements IPlanificadorCPU {
     }
 
     actualizarBloqueados(procesos: Proceso[]): Proceso[] {
-        return procesos;
+        const desbloqueados = procesos.filter(proceso => proceso.actualizarBloqueo());
+        desbloqueados.forEach(proceso => this.encolar(proceso));
+        return procesos.filter(proceso => proceso.getEstado() === EstadoProceso.Bloqueado);
     }
 
     ejecutarTick(): ResultadoCPU {
         this.despachar();
+
         const proceso = this.cpu;
         proceso?.consumirCPU();
 
@@ -34,22 +37,7 @@ export class PlanificadorRoundRobin implements IPlanificadorCPU {
             bloqueado: null
         };
 
-        const finalizo = Boolean(proceso && proceso.getCpuRestante() === 0);
-        finalizo && proceso?.terminar();
-        finalizo && (resultado.terminado = proceso);
-        finalizo && (this.cpu = null);
-
-        const quantumAgotado = Boolean(
-            proceso && !finalizo && proceso.getQuantumConsumido() >= this.quantum
-        );
-        const rotar = quantumAgotado && this.listos.length > 0;
-        rotar && proceso?.ponerListo();
-        rotar && proceso?.reiniciarQuantum();
-        rotar && proceso && this.listos.push(proceso);
-        rotar && this.cambiosContexto++;
-        rotar && (this.cpu = null);
-        quantumAgotado && !rotar && proceso?.reiniciarQuantum();
-
+        proceso && this.resolverResultado(proceso, resultado);
         return resultado;
     }
 
@@ -69,5 +57,48 @@ export class PlanificadorRoundRobin implements IPlanificadorCPU {
         const necesitaProceso = this.cpu === null;
         necesitaProceso && (this.cpu = this.listos.shift() ?? null);
         necesitaProceso && this.cpu?.comenzarEjecucion();
+    }
+
+    private resolverResultado(proceso: Proceso, resultado: ResultadoCPU): void {
+        const finalizo = proceso.getCpuRestante() === 0;
+        const bloqueo = !finalizo && proceso.debeBloquearse();
+        const quantumAgotado = !finalizo && !bloqueo && proceso.getQuantumConsumido() >= this.quantum;
+        const hayOtrosListos = this.listos.length > 0;
+
+        const reglas = [
+            {
+                aplica: finalizo,
+                ejecutar: () => {
+                    proceso.terminar();
+                    resultado.terminado = proceso;
+                    this.cpu = null;
+                }
+            },
+            {
+                aplica: bloqueo,
+                ejecutar: () => {
+                    proceso.bloquear();
+                    resultado.bloqueado = proceso;
+                    this.cambiosContexto++;
+                    this.cpu = null;
+                }
+            },
+            {
+                aplica: quantumAgotado && hayOtrosListos,
+                ejecutar: () => {
+                    proceso.ponerListo();
+                    proceso.reiniciarQuantum();
+                    this.listos.push(proceso);
+                    this.cambiosContexto++;
+                    this.cpu = null;
+                }
+            },
+            {
+                aplica: quantumAgotado && !hayOtrosListos,
+                ejecutar: () => proceso.reiniciarQuantum()
+            }
+        ];
+
+        reglas.find(regla => regla.aplica)?.ejecutar();
     }
 }
