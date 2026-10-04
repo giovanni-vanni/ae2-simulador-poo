@@ -1,7 +1,8 @@
 import { Memoria } from "./Memoria.js";
 import { PlanificadorRoundRobin } from "./PlanificadorRoundRobin.js";
 import { Proceso } from "./Proceso.js";
-import type { EventoES, NombrePolitica, VistaProceso } from "./tipos.js";
+import type { EstadoSistema, EventoES, NombrePolitica, VistaProceso } from "./tipos.js";
+import { EstadoProceso } from "./tipos.js";
 import { enteroPositivo, exigir } from "./utilidades.js";
 
 export class Simulador {
@@ -41,6 +42,20 @@ export class Simulador {
 
     consultarProceso(pid: string): VistaProceso | undefined {
         return this.procesos.find(proceso => proceso.getPid() === pid)?.vista();
+    }
+
+    obtenerEstado(): EstadoSistema {
+        return {
+            tick: this.tickActual,
+            cpu: this.planificador.obtenerCPU(),
+            listos: this.planificador.obtenerListos(),
+            esperandoMemoria: this.pendientes
+                .filter(proceso => proceso.getEstado() === EstadoProceso.EsperandoMemoria)
+                .map(proceso => proceso.getPid()),
+            bloqueados: this.bloqueados.map(proceso => proceso.getPid()),
+            terminados: this.terminados.map(proceso => proceso.getPid()),
+            memoria: this.memoria.obtenerBloques()
+        };
     }
 
     private admitirPendientes(): void {
