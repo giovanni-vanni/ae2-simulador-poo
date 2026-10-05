@@ -107,4 +107,40 @@ describe("Simulador", () => {
 
         expect(simulador.consultarProceso("P1")?.cpuRestante).toBe(1);
     });
+
+    it("calcula las metricas luego de un tick con CPU ocupada", () => {
+        const simulador = new Simulador(400, 2);
+        simulador.registrarProceso("P1", 100, 3);
+        simulador.tick();
+
+        expect(simulador.obtenerMetricas()).toEqual({
+            ocupacionMemoria: 25,
+            utilizacionCPU: 100,
+            cambiosContexto: 0,
+            memoriaLibreTotal: 300,
+            mayorBloqueLibre: 300,
+            fragmentacionExterna: 0
+        });
+    });
+
+    it("calcula 25 por ciento de fragmentacion para huecos de 100 y 300", () => {
+        const simulador = new Simulador(700, 1);
+        simulador.registrarProceso("A", 100, 1);
+        simulador.registrarProceso("B", 100, 5);
+        simulador.registrarProceso("C", 300, 1);
+        simulador.registrarProceso("D", 200, 5);
+        simulador.tick();
+        simulador.tick();
+        simulador.tick();
+
+        expect(simulador.obtenerMetricas().fragmentacionExterna).toBe(25);
+    });
+
+    it("da fragmentacion cero cuando no queda memoria libre", () => {
+        const simulador = new Simulador(100, 2);
+        simulador.registrarProceso("P1", 100, 3);
+        simulador.tick();
+
+        expect(simulador.obtenerMetricas().fragmentacionExterna).toBe(0);
+    });
 });
