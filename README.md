@@ -58,6 +58,16 @@ Para ejecutar los tests:
 npm test
 ```
 
+## Cobertura
+
+Para ejecutar los tests junto con el reporte de cobertura:
+
+```bash
+npm run test:coverage
+```
+
+El proyecto alcanza actualmente una cobertura global aproximada de **98,53 %**.
+
 ## Funcionamiento general
 
 El simulador administra procesos que necesitan memoria y tiempo de CPU.
