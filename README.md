@@ -12,6 +12,7 @@ La simulación avanza mediante ticks y utiliza planificación Round-Robin para l
 - Node.js
 - Vitest
 - Git y GitHub
+- ChatGPT
 
 ## Requisitos
 
