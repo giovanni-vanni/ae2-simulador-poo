@@ -143,4 +143,42 @@ describe("Simulador", () => {
 
         expect(simulador.obtenerMetricas().fragmentacionExterna).toBe(0);
     });
+
+    it("finaliza sin reencolar cuando termina justo al agotar quantum", () => {
+        const simulador = new Simulador(200, 2);
+        simulador.registrarProceso("P1", 100, 2);
+        simulador.registrarProceso("P2", 100, 4);
+        simulador.tick();
+        simulador.tick();
+
+        expect({
+            estado: simulador.consultarProceso("P1")?.estado,
+            listos: simulador.obtenerEstado().listos,
+            cambios: simulador.obtenerMetricas().cambiosContexto
+        }).toEqual({
+            estado: EstadoProceso.Terminado,
+            listos: ["P2"],
+            cambios: 0
+        });
+    });
+
+    it("devuelve una copia del mapa de memoria", () => {
+        const simulador = new Simulador(100, 2);
+        const estado = simulador.obtenerEstado();
+        estado.memoria[0]!.tamanio = 1;
+
+        expect(simulador.obtenerEstado().memoria[0]?.tamanio).toBe(100);
+    });
+
+    it("permite seleccionar cualquiera de las tres politicas", () => {
+        const first = new Simulador(100, 2, "first-fit");
+        const best = new Simulador(100, 2, "best-fit");
+        const worst = new Simulador(100, 2, "worst-fit");
+
+        expect([
+            first.obtenerPolitica(),
+            best.obtenerPolitica(),
+            worst.obtenerPolitica()
+        ]).toEqual(["first-fit", "best-fit", "worst-fit"]);
+    });
 });
