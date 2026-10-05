@@ -2,6 +2,25 @@ import { describe, expect, it } from "vitest";
 import { Simulador } from "../src/Simulador.js";
 import { EstadoProceso } from "../src/tipos.js";
 
+function secuenciaRoundRobin(): string[] {
+    const simulador = new Simulador(500, 2);
+    simulador.registrarProceso("P1", 100, 3);
+    simulador.registrarProceso("P2", 100, 2);
+    const ejecucion: string[] = [];
+
+    Array.from({ length: 5 }).forEach(() => {
+        const antesP1 = simulador.consultarProceso("P1")?.cpuRestante;
+        const antesP2 = simulador.consultarProceso("P2")?.cpuRestante;
+        simulador.tick();
+        const despuesP1 = simulador.consultarProceso("P1")?.cpuRestante;
+        const despuesP2 = simulador.consultarProceso("P2")?.cpuRestante;
+        antesP1 !== despuesP1 && ejecucion.push("P1");
+        antesP2 !== despuesP2 && ejecucion.push("P2");
+    });
+
+    return ejecucion;
+}
+
 describe("Simulador", () => {
     it("inicia en tick cero con memoria libre y colas vacias", () => {
         const simulador = new Simulador(1024, 2, "first-fit");
@@ -55,5 +74,37 @@ describe("Simulador", () => {
         simulador.tick();
 
         expect(simulador.consultarProceso("P2")?.estado).toBe(EstadoProceso.Terminado);
+    });
+
+    it("ejecuta P1 P1 P2 P2 P1 con quantum dos", () => {
+        expect(secuenciaRoundRobin()).toEqual(["P1", "P1", "P2", "P2", "P1"]);
+    });
+
+    it("conserva la memoria mientras un proceso esta bloqueado", () => {
+        const simulador = new Simulador(200, 2);
+        simulador.registrarProceso("P1", 100, 3, { despuesDe: 1, duracion: 2 });
+        simulador.tick();
+
+        expect(simulador.obtenerMetricas().ocupacionMemoria).toBe(50);
+    });
+
+    it("un proceso bloqueado no consume CPU", () => {
+        const simulador = new Simulador(200, 2);
+        simulador.registrarProceso("P1", 100, 3, { despuesDe: 1, duracion: 2 });
+        simulador.tick();
+        const antes = simulador.consultarProceso("P1")?.cpuRestante;
+        simulador.tick();
+
+        expect(simulador.consultarProceso("P1")?.cpuRestante).toBe(antes);
+    });
+
+    it("un proceso vuelve de E/S y puede ejecutarse en ese mismo tick", () => {
+        const simulador = new Simulador(200, 2);
+        simulador.registrarProceso("P1", 100, 3, { despuesDe: 1, duracion: 2 });
+        simulador.tick();
+        simulador.tick();
+        simulador.tick();
+
+        expect(simulador.consultarProceso("P1")?.cpuRestante).toBe(1);
     });
 });
