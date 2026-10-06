@@ -1,0 +1,13 @@
+stateDiagram-v2
+    direction LR
+
+    [*] --> Nuevo : crear proceso
+    Nuevo --> Listo : memoria disponible
+    Nuevo --> EsperandoMemoria : memoria insuficiente
+    EsperandoMemoria --> Listo : memoria disponible
+    Listo --> Ejecutando : despacho de CPU
+    Ejecutando --> Listo : quantum agotado y hay otros listos
+    Ejecutando --> Bloqueado : se dispara E/S
+    Bloqueado --> Listo : finaliza bloqueo
+    Ejecutando --> Terminado : CPU restante = 0
+    Terminado --> [*]

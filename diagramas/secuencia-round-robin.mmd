@@ -1,0 +1,36 @@
+sequenceDiagram
+    participant T as Test
+    participant S as Simulador
+    participant RR as PlanificadorRoundRobin
+    participant P as Proceso
+    participant M as Memoria
+
+    T->>S: tick()
+    S->>RR: actualizarBloqueados(bloqueados)
+    RR-->>S: procesos desbloqueados
+    S->>RR: ejecutarTick()
+
+    alt CPU libre y hay procesos listos
+        RR->>RR: despachar()
+        RR->>P: comenzarEjecucion()
+    end
+
+    RR->>P: consumirCPU()
+
+    alt CPU restante = 0
+        RR->>P: terminar()
+        RR-->>S: proceso terminado
+        S->>M: liberar(pid)
+        M->>M: coalescer()
+    else se dispara E/S
+        RR->>P: bloquear()
+        RR-->>S: proceso bloqueado
+    else quantum agotado y hay otros listos
+        RR->>P: ponerListo()
+        RR->>RR: encolar(proceso)
+        RR->>RR: aumentar cambios de contexto
+    else quantum agotado y no hay otros listos
+        RR->>P: reiniciarQuantum()
+    end
+
+    S->>S: actualizar tick y metricas
